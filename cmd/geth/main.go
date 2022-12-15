@@ -198,6 +198,11 @@ var (
 		utils.MetricsInfluxDBBucketFlag,
 		utils.MetricsInfluxDBOrganizationFlag,
 	}
+
+	sealerFlags = []cli.Flag{
+		utils.SealerEnabled,
+		utils.SealerIsInsecure,
+	}
 )
 
 var app = flags.NewApp("the go-ethereum command line interface")
@@ -249,6 +254,7 @@ func init() {
 		consoleFlags,
 		debug.Flags,
 		metricsFlags,
+		sealerFlags,
 	)
 
 	app.Before = func(ctx *cli.Context) error {
