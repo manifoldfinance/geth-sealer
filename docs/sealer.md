@@ -34,7 +34,7 @@ Builds a new block out of given transactions, optionally filling up the block wi
 
 4. `Boolean` - if `true` will include call traces of all transactions included in the block.
 
-#### Returns
+#### Returns: `Object` - Sealed block, receipts, reasons for not inclusion of transactions and optional traces.
 
 - `executableData: Object` - `beacon.ExecutableDataV1` of the sealed block.
 
@@ -61,3 +61,37 @@ Builds a new block out of given transactions, optionally filling up the block wi
 - `receipts: Object|Array` - list of receipts of the transactions included into the block.
 - `traces: Object|Array` - list of traces of the transactions included into the block.
 - `profit: QUANTITY` - total gas tip for the built block in Wei.
+
+#### Example
+
+```json
+// Request
+curl -X POST -H 'content-type: application/json' --data '{"jsonrpc":"2.0","method":"sealer_sealBlock","params":[{"gasLimit":30000000},[],false,false],"id":67}' http://localhost:8545
+// Result
+{
+  "jsonrpc": "2.0",
+  "id": 67,
+  "result": {
+    "executableData": {
+      "parentHash": "0x5eef55399e7096dea25ec8bd2c01bef23ee3ebe60aa80000974250eeb2657458",
+      "feeRecipient": "0x0000000000000000000000000000000000000000",
+      "stateRoot": "0xfa24ca12c7942609e5b066ef24790ed183dd47d61d6d2a193d2dfa06da024573",
+      "receiptsRoot": "0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421",
+      "logsBloom": "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+      "prevRandao": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "blockNumber": "0x7c35be",
+      "gasLimit": "0x1c9c380",
+      "gasUsed": "0x0",
+      "timestamp": "0x0",
+      "extraData": "0x4d616e69666f6c64",
+      "baseFeePerGas": "0x5046c8351",
+      "blockHash": "0x33918754c1870c72a6bd575f851abc771cf38317d3740104ff0554adb88aaeb9",
+      "transactions": []
+    },
+    "excludedTxns": [],
+    "receipts": [],
+    "profit": "0x0"
+  }
+}
+
+```
