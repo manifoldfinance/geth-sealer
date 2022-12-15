@@ -39,6 +39,7 @@ import (
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/sealer"
 	"github.com/naoina/toml"
 )
 
@@ -164,7 +165,17 @@ func makeFullNode(ctx *cli.Context) (*node.Node, ethapi.Backend) {
 		cfg.Eth.OverrideTerminalTotalDifficultyPassed = &override
 	}
 
-	backend, eth := utils.RegisterEthService(stack, &cfg.Eth)
+	sealerConfig := &sealer.SealerConfig{}
+
+	if ctx.IsSet(utils.SealerEnabled.Name) {
+		sealerConfig.Enabled = ctx.Bool(utils.SealerEnabled.Name)
+	}
+
+	if ctx.IsSet(utils.SealerIsInsecure.Name) {
+		sealerConfig.Insecure = ctx.Bool(utils.SealerIsInsecure.Name)
+	}
+
+	backend, eth := utils.RegisterEthService(stack, &cfg.Eth, sealerConfig)
 
 	// Warn users to migrate if they have a legacy freezer format.
 	if eth != nil && !ctx.IsSet(utils.IgnoreLegacyReceiptsFlag.Name) {
