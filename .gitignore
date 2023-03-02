@@ -47,3 +47,12 @@ profile.cov
 /dashboard/assets/package-lock.json
 
 **/yarn-error.log
+
+# Direnv cache
+.direnv/
+
+# Nix build output
+/result*
+
+# .envrc
+.envrc.local
