@@ -512,10 +512,16 @@ func opMstore8(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]
 	return nil, nil
 }
 
+// TODO: Remove this and use directly eips.go version
 func opSload(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]byte, error) {
 	loc := scope.Stack.peek()
 	hash := common.Hash(loc.Bytes32())
 	val := interpreter.evm.StateDB.GetState(scope.Contract.Address(), hash)
+	addressOk, slotOk, valueOk := interpreter.evm.StateDB.SlotIndexAndValueInStorageCheckList(scope.Contract.Address(), hash, val)
+	if addressOk && slotOk && !valueOk {
+		// TODO: Improve error message
+		return nil, ErrInvalidStorageCheck
+	}
 	loc.SetBytes(val.Bytes())
 	return nil, nil
 }

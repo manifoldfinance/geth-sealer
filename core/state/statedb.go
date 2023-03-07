@@ -100,6 +100,9 @@ type StateDB struct {
 	// Per-transaction access list
 	accessList *accessList
 
+	// Per-transaction storage check list
+	storageCheckList *storageCheckList
+
 	// Transient storage
 	transientStorage transientStorage
 
@@ -148,6 +151,7 @@ func New(root common.Hash, db Database, snaps *snapshot.Tree) (*StateDB, error) 
 		preimages:            make(map[common.Hash][]byte),
 		journal:              newJournal(),
 		accessList:           newAccessList(),
+		storageCheckList:     newStorageCheckList(),
 		transientStorage:     newTransientStorage(),
 		hasher:               crypto.NewKeccakState(),
 	}
@@ -1095,7 +1099,7 @@ func (s *StateDB) Commit(deleteEmptyObjects bool) (common.Hash, error) {
 // - Reset access list (Berlin)
 // - Add coinbase to access list (EIP-3651)
 // - Reset transient storage (EIP-1153)
-func (s *StateDB) Prepare(rules params.Rules, sender, coinbase common.Address, dst *common.Address, precompiles []common.Address, list types.AccessList) {
+func (s *StateDB) Prepare(rules params.Rules, sender, coinbase common.Address, dst *common.Address, precompiles []common.Address, list types.AccessList, checks types.StorageCheckList) {
 	if rules.IsBerlin {
 		// Clear out any leftover from previous executions
 		al := newAccessList()
@@ -1117,6 +1121,18 @@ func (s *StateDB) Prepare(rules params.Rules, sender, coinbase common.Address, d
 		}
 		if rules.IsShanghai { // EIP-3651: warm coinbase
 			al.AddAddress(coinbase)
+		}
+
+		// Clear out any leftover from previous executions
+		scl := newStorageCheckList()
+		s.storageCheckList = scl
+
+		// Incorporate storage checks
+		for _, el := range checks {
+			scl.AddAddress(el.Address)
+			for _, key := range el.StorageKeyValueChecks {
+				scl.AddSlotAndValue(el.Address, key.Index, key.Value)
+			}
 		}
 	}
 	// Reset transient storage at the beginning of transaction execution
@@ -1156,6 +1172,11 @@ func (s *StateDB) AddressInAccessList(addr common.Address) bool {
 // SlotInAccessList returns true if the given (address, slot)-tuple is in the access list.
 func (s *StateDB) SlotInAccessList(addr common.Address, slot common.Hash) (addressPresent bool, slotPresent bool) {
 	return s.accessList.Contains(addr, slot)
+}
+
+// SlotIndexAndValueInStorageCheckList returns true if the given (address, slot, value)-triple is in the storage check list.
+func (s *StateDB) SlotIndexAndValueInStorageCheckList(addr common.Address, slot common.Hash, value common.Hash) (addressOk bool, slotOk bool, valueOk bool) {
+	return s.storageCheckList.Contains(addr, slot, value)
 }
 
 // convertAccountSet converts a provided account set from address keyed to hash keyed.

@@ -101,16 +101,17 @@ type stEnvMarshaling struct {
 //go:generate go run github.com/fjl/gencodec -type stTransaction -field-override stTransactionMarshaling -out gen_sttransaction.go
 
 type stTransaction struct {
-	GasPrice             *big.Int            `json:"gasPrice"`
-	MaxFeePerGas         *big.Int            `json:"maxFeePerGas"`
-	MaxPriorityFeePerGas *big.Int            `json:"maxPriorityFeePerGas"`
-	Nonce                uint64              `json:"nonce"`
-	To                   string              `json:"to"`
-	Data                 []string            `json:"data"`
-	AccessLists          []*types.AccessList `json:"accessLists,omitempty"`
-	GasLimit             []uint64            `json:"gasLimit"`
-	Value                []string            `json:"value"`
-	PrivateKey           []byte              `json:"secretKey"`
+	GasPrice             *big.Int                  `json:"gasPrice"`
+	MaxFeePerGas         *big.Int                  `json:"maxFeePerGas"`
+	MaxPriorityFeePerGas *big.Int                  `json:"maxPriorityFeePerGas"`
+	Nonce                uint64                    `json:"nonce"`
+	To                   string                    `json:"to"`
+	Data                 []string                  `json:"data"`
+	AccessLists          []*types.AccessList       `json:"accessLists,omitempty"`
+	StorageCheckLists    []*types.StorageCheckList `json:"storageCheckLists,omitempty"`
+	GasLimit             []uint64                  `json:"gasLimit"`
+	Value                []string                  `json:"value"`
+	PrivateKey           []byte                    `json:"secretKey"`
 }
 
 type stTransactionMarshaling struct {
@@ -378,6 +379,10 @@ func (tx *stTransaction) toMessage(ps stPostState, baseFee *big.Int) (*core.Mess
 	if tx.AccessLists != nil && tx.AccessLists[ps.Indexes.Data] != nil {
 		accessList = *tx.AccessLists[ps.Indexes.Data]
 	}
+	var storageCheckList types.StorageCheckList
+	if tx.StorageCheckLists != nil && tx.StorageCheckLists[ps.Indexes.Data] != nil {
+		storageCheckList = *tx.StorageCheckLists[ps.Indexes.Data]
+	}
 	// If baseFee provided, set gasPrice to effectiveGasPrice.
 	gasPrice := tx.GasPrice
 	if baseFee != nil {
@@ -398,16 +403,17 @@ func (tx *stTransaction) toMessage(ps stPostState, baseFee *big.Int) (*core.Mess
 	}
 
 	msg := &core.Message{
-		From:       from,
-		To:         to,
-		Nonce:      tx.Nonce,
-		Value:      value,
-		GasLimit:   gasLimit,
-		GasPrice:   gasPrice,
-		GasFeeCap:  tx.MaxFeePerGas,
-		GasTipCap:  tx.MaxPriorityFeePerGas,
-		Data:       data,
-		AccessList: accessList,
+		From:             from,
+		To:               to,
+		Nonce:            tx.Nonce,
+		Value:            value,
+		GasLimit:         gasLimit,
+		GasPrice:         gasPrice,
+		GasFeeCap:        tx.MaxFeePerGas,
+		GasTipCap:        tx.MaxPriorityFeePerGas,
+		Data:             data,
+		AccessList:       accessList,
+		StorageCheckList: storageCheckList,
 	}
 	return msg, nil
 }

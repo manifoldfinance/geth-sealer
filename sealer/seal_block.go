@@ -17,6 +17,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/eth/tracers"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 )
 
@@ -161,7 +162,18 @@ func (s *Sealer) SealBlock(p *BlockParameters, txns []*types.Transaction, fillWi
 		}
 
 		// Start executing the transaction
-		state.Prepare(rules, sender, header.Coinbase, tx.To(), precompiles, tx.AccessList())
+		state.Prepare(rules, sender, header.Coinbase, tx.To(), precompiles, tx.AccessList(), tx.StorageCheckList())
+
+		// TODO: Add logic to discard conflicting txs with new tx type using ideas from state.GetState() / ForEachStorage coupled with journal
+		// Particular cases:
+		//		1) Wrong address & storage slot
+		if tx.To() != nil {
+			// Only for debugging purposes
+			state.ForEachStorage(*tx.To(), func(key, value common.Hash) bool {
+				log.Info(fmt.Sprintf("ForEachStorage -> To: %s | Slot: %s | Value: %s", *tx.To(), key, value))
+				return true
+			})
+		}
 
 		receipt, traceBody, err := s.commitTransaction(
 			state,

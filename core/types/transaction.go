@@ -45,6 +45,7 @@ const (
 	LegacyTxType = iota
 	AccessListTxType
 	DynamicFeeTxType
+	StorageCheckListTxType
 )
 
 // Transaction is an Ethereum transaction.
@@ -67,13 +68,14 @@ func NewTx(inner TxData) *Transaction {
 
 // TxData is the underlying data of a transaction.
 //
-// This is implemented by DynamicFeeTx, LegacyTx and AccessListTx.
+// This is implemented by DynamicFeeTx, LegacyTx, AccessListTx and StorageCheckListTx.
 type TxData interface {
 	txType() byte // returns the type ID
 	copy() TxData // creates a deep copy and initializes all fields
 
 	chainID() *big.Int
 	accessList() AccessList
+	storageCheckList() StorageCheckList
 	data() []byte
 	gas() uint64
 	gasPrice() *big.Int
@@ -192,6 +194,10 @@ func (tx *Transaction) decodeTyped(b []byte) (TxData, error) {
 		var inner DynamicFeeTx
 		err := rlp.DecodeBytes(b[1:], &inner)
 		return &inner, err
+	case StorageCheckListTxType:
+		var inner StorageCheckListTx
+		err := rlp.DecodeBytes(b[1:], &inner)
+		return &inner, err
 	default:
 		return nil, ErrTxTypeNotSupported
 	}
@@ -268,6 +274,9 @@ func (tx *Transaction) Data() []byte { return tx.inner.data() }
 
 // AccessList returns the access list of the transaction.
 func (tx *Transaction) AccessList() AccessList { return tx.inner.accessList() }
+
+// StorageCheckList returns the storage checks list of the transaction.
+func (tx *Transaction) StorageCheckList() StorageCheckList { return tx.inner.storageCheckList() }
 
 // Gas returns the gas limit of the transaction.
 func (tx *Transaction) Gas() uint64 { return tx.inner.gas() }

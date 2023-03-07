@@ -125,16 +125,17 @@ func toWordSize(size uint64) uint64 {
 // A Message contains the data derived from a single transaction that is relevant to state
 // processing.
 type Message struct {
-	To         *common.Address
-	From       common.Address
-	Nonce      uint64
-	Value      *big.Int
-	GasLimit   uint64
-	GasPrice   *big.Int
-	GasFeeCap  *big.Int
-	GasTipCap  *big.Int
-	Data       []byte
-	AccessList types.AccessList
+	To               *common.Address
+	From             common.Address
+	Nonce            uint64
+	Value            *big.Int
+	GasLimit         uint64
+	GasPrice         *big.Int
+	GasFeeCap        *big.Int
+	GasTipCap        *big.Int
+	Data             []byte
+	AccessList       types.AccessList
+	StorageCheckList types.StorageCheckList
 
 	// When SkipAccountCheckss is true, the message nonce is not checked against the
 	// account nonce in state. It also disables checking that the sender is an EOA.
@@ -154,6 +155,7 @@ func TransactionToMessage(tx *types.Transaction, s types.Signer, baseFee *big.In
 		Value:             tx.Value(),
 		Data:              tx.Data(),
 		AccessList:        tx.AccessList(),
+		StorageCheckList:  tx.StorageCheckList(),
 		SkipAccountChecks: false,
 	}
 	// If baseFee provided, set gasPrice to effectiveGasPrice.
@@ -361,7 +363,8 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 	// Execute the preparatory steps for state transition which includes:
 	// - prepare accessList(post-berlin)
 	// - reset transient storage(eip 1153)
-	st.state.Prepare(rules, msg.From, st.evm.Context.Coinbase, msg.To, vm.ActivePrecompiles(rules), msg.AccessList)
+
+	st.state.Prepare(rules, msg.From, st.evm.Context.Coinbase, msg.To, vm.ActivePrecompiles(rules), msg.AccessList, msg.StorageCheckList)
 
 	var (
 		ret   []byte
