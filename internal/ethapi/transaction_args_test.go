@@ -55,6 +55,7 @@ func TestSetFeeDefaults(t *testing.T) {
 		fortytwo = (*hexutil.Big)(big.NewInt(42))
 		maxFee   = (*hexutil.Big)(new(big.Int).Add(new(big.Int).Mul(b.current.BaseFee, big.NewInt(2)), fortytwo.ToInt()))
 		al       = &types.AccessList{types.AccessTuple{Address: common.Address{0xaa}, StorageKeys: []common.Hash{{0x01}}}}
+		scl      = &types.StorageCheckList{types.StorageCheckTuple{Address: common.Address{0xaa}, StorageKeyValueChecks: []types.StorageKeyValueCheck{{Index: common.Hash{0x01}, Value: common.Hash{0x01}}}}}
 	)
 
 	tests := []test{
@@ -160,6 +161,43 @@ func TestSetFeeDefaults(t *testing.T) {
 			&TransactionArgs{MaxFeePerGas: (*hexutil.Big)(big.NewInt(7))},
 			nil,
 			fmt.Errorf("maxFeePerGas (0x7) < maxPriorityFeePerGas (0x2a)"),
+		},
+
+		// New Tx Type
+		{
+			"storage check list tx pre-London",
+			false,
+			&TransactionArgs{StorageCheckList: scl},
+			&TransactionArgs{StorageCheckList: scl, GasPrice: fortytwo},
+			nil,
+		},
+		{
+			"storage check list tx post-London, explicit gas price",
+			false,
+			&TransactionArgs{StorageCheckList: scl, GasPrice: fortytwo},
+			&TransactionArgs{StorageCheckList: scl, GasPrice: fortytwo},
+			nil,
+		},
+		{
+			"storage check list tx post-London",
+			true,
+			&TransactionArgs{StorageCheckList: scl},
+			&TransactionArgs{StorageCheckList: scl, MaxFeePerGas: maxFee, MaxPriorityFeePerGas: fortytwo},
+			nil,
+		},
+		{
+			"storage check list tx post-London, only max fee",
+			true,
+			&TransactionArgs{StorageCheckList: scl, MaxFeePerGas: maxFee},
+			&TransactionArgs{StorageCheckList: scl, MaxFeePerGas: maxFee, MaxPriorityFeePerGas: fortytwo},
+			nil,
+		},
+		{
+			"storage check list tx post-London, only priority fee",
+			true,
+			&TransactionArgs{StorageCheckList: scl, MaxFeePerGas: maxFee},
+			&TransactionArgs{StorageCheckList: scl, MaxFeePerGas: maxFee, MaxPriorityFeePerGas: fortytwo},
+			nil,
 		},
 
 		// Misc

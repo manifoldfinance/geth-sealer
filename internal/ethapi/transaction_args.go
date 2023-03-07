@@ -50,8 +50,9 @@ type TransactionArgs struct {
 	Input *hexutil.Bytes `json:"input"`
 
 	// Introduced by AccessListTxType transaction.
-	AccessList *types.AccessList `json:"accessList,omitempty"`
-	ChainID    *hexutil.Big      `json:"chainId,omitempty"`
+	AccessList       *types.AccessList       `json:"accessList,omitempty"`
+	StorageCheckList *types.StorageCheckList `json:"storageCheckList,omitempty"`
+	ChainID          *hexutil.Big            `json:"chainId,omitempty"`
 }
 
 // from retrieves the transaction sender address.
@@ -263,7 +264,11 @@ func (args *TransactionArgs) ToMessage(globalGasCap uint64, baseFee *big.Int) (t
 	if args.AccessList != nil {
 		accessList = *args.AccessList
 	}
-	msg := types.NewMessage(addr, args.To, 0, value, gas, gasPrice, gasFeeCap, gasTipCap, data, accessList, true)
+	var storageCheckList types.StorageCheckList
+	if args.StorageCheckList != nil {
+		storageCheckList = *args.StorageCheckList
+	}
+	msg := types.NewMessage(addr, args.To, 0, value, gas, gasPrice, gasFeeCap, gasTipCap, data, accessList, storageCheckList, true)
 	return msg, nil
 }
 
@@ -298,6 +303,17 @@ func (args *TransactionArgs) toTransaction() *types.Transaction {
 			Value:      (*big.Int)(args.Value),
 			Data:       args.data(),
 			AccessList: *args.AccessList,
+		}
+	case args.StorageCheckList != nil:
+		data = &types.StorageCheckListTx{
+			To:               args.To,
+			ChainID:          (*big.Int)(args.ChainID),
+			Nonce:            uint64(*args.Nonce),
+			Gas:              uint64(*args.Gas),
+			GasPrice:         (*big.Int)(args.GasPrice),
+			Value:            (*big.Int)(args.Value),
+			Data:             args.data(),
+			StorageCheckList: *args.StorageCheckList,
 		}
 	default:
 		data = &types.LegacyTx{

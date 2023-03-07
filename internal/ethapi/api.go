@@ -1489,6 +1489,97 @@ func AccessList(ctx context.Context, b Backend, blockNrOrHash rpc.BlockNumberOrH
 	}
 }
 
+// storageCheckListResult returns an optional list of storage accesses
+// Its the result of the `debug_createStorageAccessList` RPC call.
+// It contains an error if the transaction itself failed.
+type storageCheckListResult struct {
+	StorageCheckList *types.StorageCheckList `json:"storageCheckList"`
+	Error            string                  `json:"error,omitempty"`
+	GasUsed          hexutil.Uint64          `json:"gasUsed"`
+}
+
+func (s *BlockChainAPI) CreateStorageCheckList(ctx context.Context, args TransactionArgs, blockNrOrHash *rpc.BlockNumberOrHash) (*storageCheckListResult, error) {
+	bNrOrHash := rpc.BlockNumberOrHashWithNumber(rpc.PendingBlockNumber)
+	if blockNrOrHash != nil {
+		bNrOrHash = *blockNrOrHash
+	}
+	scl, gasUsed, vmerr, err := StorageCheckList(ctx, s.b, bNrOrHash, args)
+	if err != nil {
+		return nil, err
+	}
+	result := &storageCheckListResult{StorageCheckList: &scl, GasUsed: hexutil.Uint64(gasUsed)}
+	if vmerr != nil {
+		result.Error = vmerr.Error()
+	}
+	return result, nil
+}
+
+// StorageCheckList creates an storage check list for the given transaction.
+// If the storageCheckList creation fails an error is returned.
+// If the transaction itself fails, an vmErr is returned.
+func StorageCheckList(ctx context.Context, b Backend, blockNrOrHash rpc.BlockNumberOrHash, args TransactionArgs) (scl types.StorageCheckList, gasUsed uint64, vmErr error, err error) {
+	// Retrieve the execution context
+	db, header, err := b.StateAndHeaderByNumberOrHash(ctx, blockNrOrHash)
+	if db == nil || err != nil {
+		return nil, 0, nil, err
+	}
+	// If the gas amount is not set, default to RPC gas cap.
+	if args.Gas == nil {
+		tmp := hexutil.Uint64(b.RPCGasCap())
+		args.Gas = &tmp
+	}
+
+	// Ensure any missing fields are filled, extract the recipient and input data
+	if err := args.setDefaults(ctx, b); err != nil {
+		return nil, 0, nil, err
+	}
+	var to common.Address
+	if args.To != nil {
+		to = *args.To
+	} else {
+		to = crypto.CreateAddress(args.from(), uint64(*args.Nonce))
+	}
+	isPostMerge := header.Difficulty.Cmp(common.Big0) == 0
+	// Retrieve the precompiles since they don't need to be added to the storage check list
+	precompiles := vm.ActivePrecompiles(b.ChainConfig().Rules(header.Number, isPostMerge, header.Time))
+
+	// Create an initial tracer
+	prevTracer := logger.NewStorageCheckListTracer(nil, args.from(), to, precompiles)
+	if args.StorageCheckList != nil {
+		prevTracer = logger.NewStorageCheckListTracer(*args.StorageCheckList, args.from(), to, precompiles)
+	}
+	for {
+		// Retrieve the current storage check list to expand
+		storageCheckList := prevTracer.StorageCheckList()
+		log.Trace("Creating storage check list", "input", storageCheckList)
+
+		// Copy the original db so we don't modify it
+		statedb := db.Copy()
+		// Set the storageCheckList to the last scl
+		args.StorageCheckList = &storageCheckList
+		msg, err := args.ToMessage(b.RPCGasCap(), header.BaseFee)
+		if err != nil {
+			return nil, 0, nil, err
+		}
+
+		// Apply the transaction with the storage check list tracer
+		tracer := logger.NewStorageCheckListTracer(storageCheckList, args.from(), to, precompiles)
+		config := vm.Config{Tracer: tracer, Debug: true, NoBaseFee: true}
+		vmenv, _, err := b.GetEVM(ctx, msg, statedb, header, &config)
+		if err != nil {
+			return nil, 0, nil, err
+		}
+		res, err := core.ApplyMessage(vmenv, msg, new(core.GasPool).AddGas(msg.Gas()))
+		if err != nil {
+			return nil, 0, nil, fmt.Errorf("failed to apply transaction: %v err: %v", args.toTransaction().Hash(), err)
+		}
+		if tracer.Equal(prevTracer) {
+			return storageCheckList, res.UsedGas, res.Err, nil
+		}
+		prevTracer = tracer
+	}
+}
+
 // TransactionAPI exposes methods for reading and creating transaction data.
 type TransactionAPI struct {
 	b         Backend
