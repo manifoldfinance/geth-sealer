@@ -90,6 +90,16 @@ type transactionsByPriceAndNonce struct {
 	baseFee *big.Int                                     // Current base fee
 }
 
+type TransactionsByPriceAndNonce interface {
+	Peek() *txpool.LazyTransaction
+	Shift()
+	Pop()
+}
+
+func NewTransactionsByPriceAndNonce(signer types.Signer, txs map[common.Address][]*txpool.LazyTransaction, baseFee *big.Int) TransactionsByPriceAndNonce {
+	return newTransactionsByPriceAndNonce(signer, txs, baseFee)
+}
+
 // newTransactionsByPriceAndNonce creates a transaction set that can retrieve
 // price sorted transactions in a nonce-honouring way.
 //

@@ -70,6 +70,7 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/netutil"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/ethereum/go-ethereum/sealer"
 	"github.com/ethereum/go-ethereum/trie"
 	"github.com/ethereum/go-ethereum/trie/triedb/hashdb"
 	"github.com/ethereum/go-ethereum/trie/triedb/pathdb"
@@ -943,6 +944,14 @@ Please note that --` + MetricsHTTPFlag.Name + ` must be set to start the server.
 		Usage:    "InfluxDB organization name (v2 only)",
 		Value:    metrics.DefaultConfig.InfluxDBOrganization,
 		Category: flags.MetricsCategory,
+	}
+	SealerEnabled = &cli.BoolFlag{
+		Name:  "sealer",
+		Usage: "Enable the sealer API",
+	}
+	SealerIsInsecure = &cli.BoolFlag{
+		Name:  "sealer.insecure",
+		Usage: "Enable the sealer API via not authenticated endpoint(s)",
 	}
 )
 
@@ -1910,7 +1919,7 @@ func SetDNSDiscoveryDefaults(cfg *ethconfig.Config, genesis common.Hash) {
 // RegisterEthService adds an Ethereum client to the stack.
 // The second return value is the full node instance, which may be nil if the
 // node is running as a light client.
-func RegisterEthService(stack *node.Node, cfg *ethconfig.Config) (ethapi.Backend, *eth.Ethereum) {
+func RegisterEthService(stack *node.Node, cfg *ethconfig.Config, scfg *sealer.SealerConfig) (ethapi.Backend, *eth.Ethereum) {
 	if cfg.SyncMode == downloader.LightSync {
 		backend, err := les.New(stack, cfg)
 		if err != nil {
@@ -1927,6 +1936,12 @@ func RegisterEthService(stack *node.Node, cfg *ethconfig.Config) (ethapi.Backend
 		_, err := les.NewLesServer(stack, backend, cfg)
 		if err != nil {
 			Fatalf("Failed to create the LES server: %v", err)
+		}
+	}
+
+	if scfg.Enabled {
+		if err := sealer.Register(stack, backend, scfg); err != nil {
+			Fatalf("Failed to register the sealer service: %v", err)
 		}
 	}
 	stack.RegisterAPIs(tracers.APIs(backend.APIBackend))

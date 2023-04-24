@@ -194,6 +194,11 @@ var (
 		utils.MetricsInfluxDBBucketFlag,
 		utils.MetricsInfluxDBOrganizationFlag,
 	}
+
+	sealerFlags = []cli.Flag{
+		utils.SealerEnabled,
+		utils.SealerIsInsecure,
+	}
 )
 
 var app = flags.NewApp("the go-ethereum command line interface")
@@ -242,6 +247,7 @@ func init() {
 		consoleFlags,
 		debug.Flags,
 		metricsFlags,
+		sealerFlags,
 	)
 	flags.AutoEnvVars(app.Flags, "GETH")
 
