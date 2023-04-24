@@ -44,6 +44,7 @@ import (
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/sealer"
 	"github.com/naoina/toml"
 	"github.com/urfave/cli/v2"
 )
@@ -178,10 +179,30 @@ func makeFullNode(ctx *cli.Context) (*node.Node, ethapi.Backend) {
 		v := ctx.Uint64(utils.OverrideVerkle.Name)
 		cfg.Eth.OverrideVerkle = &v
 	}
+
+	sealerConfig := &sealer.SealerConfig{}
+	if ctx.IsSet(utils.SealerEnabled.Name) {
+		sealerConfig.Enabled = ctx.Bool(utils.SealerEnabled.Name)
+	}
+	if ctx.IsSet(utils.SealerIsInsecure.Name) {
+		sealerConfig.Insecure = ctx.Bool(utils.SealerIsInsecure.Name)
+	}
+
 	backend, eth := utils.RegisterEthService(stack, &cfg.Eth)
+
+	if sealerConfig.Enabled && eth == nil {
+		utils.Fatalf("Sealer service requires a full node")
+	}
 
 	// Create gauge with geth system and build information
 	if eth != nil { // The 'eth' backend may be nil in light mode
+		if sealerConfig.Enabled {
+			if err := sealer.Register(stack, eth, sealerConfig); err != nil {
+				utils.Fatalf("Failed to register the sealer service: %v", err)
+			}
+			log.Info("Sealer enabled")
+		}
+
 		var protos []string
 		for _, p := range eth.Protocols() {
 			protos = append(protos, fmt.Sprintf("%v/%d", p.Name, p.Version))

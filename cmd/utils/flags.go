@@ -944,6 +944,14 @@ Please note that --` + MetricsHTTPFlag.Name + ` must be set to start the server.
 		Value:    metrics.DefaultConfig.InfluxDBOrganization,
 		Category: flags.MetricsCategory,
 	}
+	SealerEnabled = &cli.BoolFlag{
+		Name:  "sealer",
+		Usage: "Enable the sealer API",
+	}
+	SealerIsInsecure = &cli.BoolFlag{
+		Name:  "sealer.insecure",
+		Usage: "Enable the sealer API via not authenticated endpoint(s)",
+	}
 )
 
 var (
