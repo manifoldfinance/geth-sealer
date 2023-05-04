@@ -226,7 +226,6 @@ func (s *Sealer) commitTransaction(
 			return nil, nil, fmt.Errorf("could not create a new call tracer")
 		}
 		vmConfig.Tracer = callTracer
-		vmConfig.Debug = true
 		defer func() {
 			if err != nil {
 				return
